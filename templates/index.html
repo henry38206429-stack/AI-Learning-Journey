@@ -1,136 +1,133 @@
 <!DOCTYPE html>
-
 <html>
+<head>
+    <title>AI 手寫辨識</title>
+
+    <style>
+        body {
+            font-family: Arial;
+            background: #f4f6f8;
+            text-align: center;
+            padding-top: 30px;
+        }
+
+        .card {
+            background: white;
+            width: 400px;
+            margin: auto;
+            padding: 20px;
+            border-radius: 16px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+
+        canvas {
+            border: 2px solid #333;
+            border-radius: 10px;
+            background: white;
+        }
+
+        button {
+            margin-top: 10px;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+
+        .predict-btn {
+            background: #4CAF50;
+            color: white;
+        }
+
+        .clear-btn {
+            background: #f44336;
+            color: white;
+        }
+
+        .result {
+            margin-top: 15px;
+            font-size: 24px;
+            font-weight: bold;
+        }
+
+        .loading {
+            display: none;
+            color: #888;
+        }
+    </style>
+</head>
 
 <body>
 
-<h1>AI 手寫辨識</h1>
+<div class="card">
+    <h2>✍️ AI 手寫辨識</h2>
 
-<canvas
-id="canvas"
-width="280"
-height="280"
-style="border:1px solid black">
-</canvas>
+    <canvas id="canvas" width="280" height="280"></canvas>
 
-<br><br>
+    <br>
 
-<button onclick="predict()">
-預測
-</button>
+    <button class="predict-btn" onclick="predict()">預測</button>
+    <button class="clear-btn" onclick="clearCanvas()">清除</button>
 
-<button onclick="clearCanvas()">
-清除
-</button>
+    <div class="loading" id="loading">AI 思考中...</div>
 
-<h2 id="result">
-AI：
-</h2>
+    <div class="result" id="result">結果：-</div>
+</div>
 
 <script>
+let canvas = document.getElementById("canvas");
+let ctx = canvas.getContext("2d");
 
-const canvas=
-document.getElementById("canvas")
+let drawing = false;
 
-const ctx=
-canvas.getContext("2d")
+// 畫筆
+canvas.addEventListener("mousedown", () => drawing = true);
+canvas.addEventListener("mouseup", () => drawing = false);
+canvas.addEventListener("mousemove", draw);
 
-ctx.fillStyle="white"
-ctx.fillRect(
-0,
-0,
-canvas.width,
-canvas.height
-)
+function draw(e) {
+    if (!drawing) return;
 
-let drawing=false
-
-canvas.addEventListener(
-"mousedown",
-()=>drawing=true
-)
-
-canvas.addEventListener(
-"mouseup",
-()=>drawing=false
-)
-
-canvas.addEventListener(
-"mousemove",
-draw
-)
-
-function draw(e){
-
-if(!drawing)return
-
-ctx.fillStyle="black"
-
-ctx.beginPath()
-
-ctx.arc(
-e.offsetX,
-e.offsetY,
-10,
-0,
-Math.PI*2
-)
-
-ctx.fill()
-
+    ctx.fillStyle = "black";
+    ctx.beginPath();
+    ctx.arc(e.offsetX, e.offsetY, 8, 0, Math.PI * 2);
+    ctx.fill();
 }
 
-function clearCanvas(){
-
-ctx.fillStyle="white"
-
-ctx.fillRect(
-0,
-0,
-canvas.width,
-canvas.height
-)
-
-document.getElementById(
-"result"
-).innerHTML="AI："
-
+// 清除
+function clearCanvas() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    document.getElementById("result").innerText = "結果：-";
 }
 
-async function predict(){
+// 預測
+async function predict() {
 
-const image=
-canvas.toDataURL()
+    document.getElementById("loading").style.display = "block";
 
-const response=
-await fetch(
-"/predict",
-{
-method:"POST",
+    let data = canvas.toDataURL();
 
-headers:{
-"Content-Type":
-"application/json"
-},
+    let res = await fetch("/predict", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ image: data })
+    });
 
-body:JSON.stringify({
-image:image
-})
+    let result = await res.json();
+
+    document.getElementById("loading").style.display = "none";
+
+    if (result.prediction !== undefined) {
+        document.getElementById("result").innerText =
+            "結果：" + result.prediction;
+    } else {
+        document.getElementById("result").innerText =
+            "錯誤";
+    }
 }
-)
-
-const data=
-await response.json()
-
-document.getElementById(
-"result"
-).innerHTML=
-"AI："+data.prediction
-
-}
-
 </script>
 
 </body>
-
 </html>
