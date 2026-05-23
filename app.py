@@ -9,75 +9,89 @@ import os
 
 app = Flask(__name__)
 
-# CNN（和訓練時完全一致）
+# =========================
+# CNN 模型（必須和訓練一致）
+# =========================
 class CNN(nn.Module):
     def __init__(self):
         super().__init__()
 
-        self.conv=nn.Sequential(
-            nn.Conv2d(1,32,3),
+        self.conv = nn.Sequential(
+            nn.Conv2d(1, 32, 3),
             nn.ReLU(),
             nn.MaxPool2d(2),
 
-            nn.Conv2d(32,64,3),
+            nn.Conv2d(32, 64, 3),
             nn.ReLU(),
             nn.MaxPool2d(2)
         )
 
-        self.fc=nn.Sequential(
+        self.fc = nn.Sequential(
             nn.Flatten(),
-            nn.Linear(64*5*5,128),
+            nn.Linear(64 * 5 * 5, 128),
             nn.ReLU(),
-            nn.Linear(128,10)
+            nn.Linear(128, 10)
         )
 
-    def forward(self,x):
+    def forward(self, x):
         return self.fc(self.conv(x))
 
-model=CNN()
 
-model.load_state_dict(
-    torch.load(
-        "mnist_cnn.pth",
-        map_location="cpu"
-    )
-)
+# =========================
+# Lazy load model（重點🔥）
+# =========================
+model = None
 
-model = torch.load("mnist_cnn.pth", map_location="cpu")
+def load_model():
+    global model
+    if model is None:
+        model = CNN()
+        model.load_state_dict(
+            torch.load("mnist_cnn.pth", map_location="cpu")
+        )
+        model.eval()
+    return model
 
-model.eval()
 
-transform=transforms.Compose([
+# =========================
+# image transform
+# =========================
+transform = transforms.Compose([
     transforms.Grayscale(),
-    transforms.Resize((28,28)),
+    transforms.Resize((28, 28)),
     transforms.ToTensor(),
-    transforms.Normalize((0.5,),(0.5,))
+    transforms.Normalize((0.5,), (0.5,))
 ])
 
+
+# =========================
+# routes
+# =========================
 @app.route("/")
 def home():
     return render_template("index.html")
 
+
 @app.route("/predict", methods=["POST"])
 def predict():
-
     try:
-        print("🔥 REQUEST OK")
+        print("🔥 request received")
 
         data = request.json["image"]
-
-        print("🔥 got image")
-
         data = data.split(",")[1]
 
-        image = Image.open(io.BytesIO(base64.b64decode(data))).convert("L")
+        image = Image.open(
+            io.BytesIO(base64.b64decode(data))
+        ).convert("L")
 
         print("🔥 image decoded")
 
         image = transform(image)
         image = image.unsqueeze(0)
 
-        print("🔥 tensor ready:", image.shape)
+        print("🔥 tensor shape:", image.shape)
+
+        model = load_model()
 
         with torch.no_grad():
             output = model(image)
@@ -91,6 +105,10 @@ def predict():
         print("❌ ERROR:", str(e))
         return jsonify({"error": str(e)}), 500
 
+
+# =========================
+# render entry
+# =========================
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 10000))
     app.run(host="0.0.0.0", port=port)
