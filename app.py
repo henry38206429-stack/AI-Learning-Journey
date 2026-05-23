@@ -5,6 +5,7 @@ from PIL import Image
 import torchvision.transforms as transforms
 import base64
 import io
+import os
 
 app = Flask(__name__)
 
@@ -55,34 +56,36 @@ transform=transforms.Compose([
 def home():
     return render_template("index.html")
 
-@app.route("/predict",methods=["POST"])
+@app.route("/predict", methods=["POST"])
 def predict():
 
-    data=request.json["image"]
+    try:
+        print("🔥 got request")
 
-    data=data.split(",")[1]
+        data = request.json["image"]
+        data = data.split(",")[1]
 
-    image=Image.open(
-        io.BytesIO(
-            base64.b64decode(data)
-        )
-    )
+        image = Image.open(io.BytesIO(base64.b64decode(data)))
 
-    image=transform(image)
-    image=image.unsqueeze(0)
+        print("🔥 image loaded")
 
-    with torch.no_grad():
+        image = transform(image)
+        image = image.unsqueeze(0)
 
-        output=model(image)
+        print("🔥 tensor ready")
 
-        pred=torch.argmax(
-            output,
-            dim=1
-        )
+        with torch.no_grad():
+            output = model(image)
+            pred = torch.argmax(output, dim=1).item()
 
-    return jsonify({
-        "prediction":pred.item()
-    })
+        print("🔥 success:", pred)
 
-if __name__=="__main__":
-    app.run()
+        return jsonify({"prediction": pred})
+
+    except Exception as e:
+        print("❌ ERROR:", str(e))
+        return jsonify({"error": str(e)}), 500
+
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 10000))
+    app.run(host="0.0.0.0", port=port)
