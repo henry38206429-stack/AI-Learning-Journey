@@ -1,17 +1,19 @@
-from flask import Flask, render_template, request
+from flask import Flask, render_template, request, jsonify
 import torch
 import torch.nn as nn
 from PIL import Image
 import torchvision.transforms as transforms
+import base64
+import io
 
 app = Flask(__name__)
 
-# CNN（跟訓練時完全一致）
+# CNN（和訓練時完全一致）
 class CNN(nn.Module):
     def __init__(self):
         super().__init__()
 
-        self.conv = nn.Sequential(
+        self.conv=nn.Sequential(
             nn.Conv2d(1,32,3),
             nn.ReLU(),
             nn.MaxPool2d(2),
@@ -31,42 +33,56 @@ class CNN(nn.Module):
     def forward(self,x):
         return self.fc(self.conv(x))
 
-model= CNN()
+model=CNN()
+
 model.load_state_dict(
-    torch.load("mnist_cnn.pth",map_location="cpu")
+    torch.load(
+        "mnist_cnn.pth",
+        map_location="cpu"
+    )
 )
+
 model.eval()
 
-transform = transforms.Compose([
+transform=transforms.Compose([
     transforms.Grayscale(),
     transforms.Resize((28,28)),
     transforms.ToTensor(),
-    transforms.Normalize((0.5,), (0.5,))
+    transforms.Normalize((0.5,),(0.5,))
 ])
 
-@app.route("/", methods=["GET","POST"])
+@app.route("/")
 def home():
+    return render_template("index.html")
 
-    result=""
+@app.route("/predict",methods=["POST"])
+def predict():
 
-    if request.method=="POST":
+    data=request.json["image"]
 
-        file=request.files["image"]
+    data=data.split(",")[1]
 
-        img=Image.open(file)
-        img=transform(img)
-        img=img.unsqueeze(0)
-
-        with torch.no_grad():
-
-            output=model(img)
-            pred=torch.argmax(output,dim=1)
-
-        result=pred.item()
-
-    return render_template(
-        "index.html",
-        result=result
+    image=Image.open(
+        io.BytesIO(
+            base64.b64decode(data)
+        )
     )
 
-app.run(debug=True)
+    image=transform(image)
+    image=image.unsqueeze(0)
+
+    with torch.no_grad():
+
+        output=model(image)
+
+        pred=torch.argmax(
+            output,
+            dim=1
+        )
+
+    return jsonify({
+        "prediction":pred.item()
+    })
+
+if __name__=="__main__":
+    app.run()
