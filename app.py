@@ -43,6 +43,8 @@ model.load_state_dict(
     )
 )
 
+model = torch.load("mnist_cnn.pth", map_location="cpu")
+
 model.eval()
 
 transform=transforms.Compose([
