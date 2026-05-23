@@ -87,7 +87,7 @@ def evaluate():
 # ======================
 # 5. Training
 # ======================
-for epoch in range(30):  # 🔥 7 epoch 最穩
+for epoch in range(100):  # 🔥 7 epoch 最穩
 
     model.train()
     running_loss = 0
