@@ -60,25 +60,28 @@ def home():
 def predict():
 
     try:
-        print("🔥 got request")
+        print("🔥 REQUEST OK")
 
         data = request.json["image"]
+
+        print("🔥 got image")
+
         data = data.split(",")[1]
 
-        image = Image.open(io.BytesIO(base64.b64decode(data)))
+        image = Image.open(io.BytesIO(base64.b64decode(data))).convert("L")
 
-        print("🔥 image loaded")
+        print("🔥 image decoded")
 
         image = transform(image)
         image = image.unsqueeze(0)
 
-        print("🔥 tensor ready")
+        print("🔥 tensor ready:", image.shape)
 
         with torch.no_grad():
             output = model(image)
             pred = torch.argmax(output, dim=1).item()
 
-        print("🔥 success:", pred)
+        print("🔥 prediction:", pred)
 
         return jsonify({"prediction": pred})
 
